@@ -689,18 +689,19 @@ function saveSettings() {
   showInAppToast('✅ Settings saved');
 }
 
-function updateNotifSettings() {
-  const bp = document.getElementById('bus-notif-status');
-  const fp = document.getElementById('food-notif-status');
-  if (bp) bp.textContent = state.busReminderOn ? 'On · ' + fmt12(gymTo reminder()) : 'Off';
-  updateToggle('bus-notif-toggle', state.busReminderOn);
-  updateToggle('food-notif-toggle', state.foodReminderOn);
-}
-
 function gymToReminder() {
   const [gh, gm] = state.gymTime.split(':').map(Number);
   const rh = gh - 1 < 0 ? 23 : gh - 1;
   return pad(rh) + ':' + pad(gm);
+}
+
+function updateNotifSettings() {
+  const bp = document.getElementById('bus-notif-status');
+  const fp = document.getElementById('food-notif-status');
+  if (bp) bp.textContent = state.busReminderOn ? 'On · ' + fmt12(gymToReminder()) : 'Off';
+  if (fp) fp.textContent = state.foodReminderOn ? 'Enabled' : 'Off';
+  updateToggle('bus-notif-toggle', state.busReminderOn);
+  updateToggle('food-notif-toggle', state.foodReminderOn);
 }
 
 function toggleReminder(type) {
