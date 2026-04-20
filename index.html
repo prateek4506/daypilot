@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Day Pilot"/>
+<meta name="theme-color" content="#0a0a0f"/>
+<title>Day Pilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg: #0a0a0f;
+  --surface: #13131a;
+  --surface2: #1c1c26;
+  --border: rgba(255,255,255,0.07);
+  --accent: #c8f060;
+  --accent2: #60d0f0;
+  --accent3: #f060a0;
+  --text: #f0f0f0;
+  --muted: #666680;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Syne',sans-serif;}
+body{display:flex;flex-direction:column;}
+
+/* INSTALL BANNER */
+#install-banner{
+  display:none;position:fixed;bottom:0;left:0;right:0;z-index:999;
+  background:var(--surface2);border-top:1px solid var(--border);
+  padding:16px 20px calc(16px + var(--safe-bottom));
+  animation:slideUp .3s ease;
+}
+#install-banner.show{display:block;}
+.install-steps{font-family:'DM Mono',monospace;font-size:12px;color:var(--muted);line-height:1.8;}
+.install-steps strong{color:var(--accent);font-weight:500;}
+.install-close{float:right;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;margin-top:-4px;}
+
+/* HEADER */
+header{
+  padding:calc(var(--safe-top) + 16px) 20px 16px;
+  background:var(--bg);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;
+}
+.logo{font-size:20px;font-weight:800;letter-spacing:-0.5px;}
+.logo span{color:var(--accent);}
+.clock{font-family:'DM Mono',monospace;font-size:14px;color:var(--muted);}
+.notif-btn{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:20px;padding:6px 12px;font-size:11px;font-family:'DM Mono',monospace;
+  color:var(--muted);cursor:pointer;
+}
+.notif-btn.active{color:var(--accent);border-color:var(--accent);background:rgba(200,240,96,0.08);}
+
+/* NAV */
+nav{
+  display:flex;background:var(--surface);border-bottom:1px solid var(--border);
+  flex-shrink:0;overflow-x:auto;scrollbar-width:none;
+}
+nav::-webkit-scrollbar{display:none;}
+.nav-tab{
+  flex:1;min-width:0;padding:12px 8px;text-align:center;
+  font-size:10px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .2s;white-space:nowrap;
+}
+.nav-tab.active{color:var(--accent);border-color:var(--accent);}
+.nav-icon{font-size:18px;display:block;margin-bottom:2px;}
+
+/* MAIN SCROLL */
+main{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-webkit-overflow-scrolling:touch;}
+.page{display:none;}
+.page.active{display:block;}
+
+/* CARDS */
+.card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:16px;padding:20px;margin-bottom:12px;
+}
+.card-label{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.card-title{font-size:22px;font-weight:800;line-height:1.1;margin-bottom:4px;}
+.card-sub{font-size:13px;color:var(--muted);font-family:'DM Mono',monospace;}
+
+/* ALARM */
+.time-display{
+  font-family:'DM Mono',monospace;font-size:56px;font-weight:500;
+  color:var(--accent);letter-spacing:-2px;line-height:1;margin:16px 0;
+  cursor:pointer;
+}
+.time-display input[type=time]{
+  background:none;border:none;outline:none;
+  font-family:'DM Mono',monospace;font-size:56px;font-weight:500;
+  color:var(--accent);letter-spacing:-2px;width:100%;
+  -webkit-appearance:none;
+}
+.status-pill{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:20px;font-size:12px;font-family:'DM Mono',monospace;
+  background:var(--surface2);border:1px solid var(--border);color:var(--muted);
+  margin-bottom:16px;
+}
+.status-pill .dot{width:6px;height:6px;border-radius:50%;background:var(--muted);}
+.status-pill.on .dot{background:var(--accent);box-shadow:0 0 6px var(--accent);}
+.status-pill.on{color:var(--accent);border-color:rgba(200,240,96,.3);}
+.status-pill.warn .dot{background:#f0a060;box-shadow:0 0 6px #f0a060;}
+.status-pill.warn{color:#f0a060;border-color:rgba(240,160,96,.3);}
+
+/* BUTTONS */
+.btn{
+  width:100%;padding:14px;border-radius:12px;
+  font-family:'Syne',sans-serif;font-size:14px;font-weight:700;
+  cursor:pointer;border:none;transition:all .15s;
+  letter-spacing:.3px;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--accent);color:#0a0a0f;}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+.btn-accent2{background:var(--accent2);color:#0a0a0f;}
+.btn-accent3{background:var(--accent3);color:#fff;}
+.btn-sm{
+  padding:10px 16px;border-radius:10px;font-size:13px;font-weight:700;
+  cursor:pointer;border:none;transition:all .15s;font-family:'Syne',sans-serif;
+  background:var(--surface2);color:var(--text);border:1px solid var(--border);
+}
+.btn-sm:active{transform:scale(.97);}
+.btn-row{display:flex;gap:8px;margin-top:12px;}
+
+/* BUS COUNTDOWN */
+.countdown-ring{
+  width:120px;height:120px;margin:16px auto;position:relative;
+}
+.countdown-ring svg{transform:rotate(-90deg);}
+.countdown-ring .ring-bg{stroke:var(--surface2);fill:none;stroke-width:8;}
+.countdown-ring .ring-fill{stroke:var(--accent2);fill:none;stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .5s ease;}
+.countdown-center{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  text-align:center;
+}
+.countdown-time{font-family:'DM Mono',monospace;font-size:18px;font-weight:500;color:var(--accent2);}
+.countdown-label{font-size:9px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);}
+
+/* RESULTS */
+.result-list{margin-top:12px;}
+.result-item{
+  background:var(--surface2);border:1px solid var(--border);border-radius:12px;
+  padding:14px;margin-bottom:8px;
+}
+.result-item-name{font-size:15px;font-weight:700;margin-bottom:4px;}
+.result-item-meta{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;line-height:1.6;}
+.result-item-tag{
+  display:inline-block;padding:2px 8px;border-radius:6px;
+  font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  background:rgba(200,240,96,.12);color:var(--accent);margin-top:6px;margin-right:4px;
+}
+.result-item-tag.blue{background:rgba(96,208,240,.12);color:var(--accent2);}
+
+/* LOADING */
+.loading{text-align:center;padding:32px;color:var(--muted);font-family:'DM Mono',monospace;font-size:13px;}
+.loading::after{content:'';animation:ldots 1.2s steps(4,end) infinite;}
+@keyframes ldots{0%{content:'';}25%{content:'.';}50%{content:'..';}75%{content:'...';}100%{content:'...';}}
+
+/* STOP INPUT */
+.stop-input-row{display:flex;gap:8px;margin:12px 0;}
+.stop-input{
+  flex:1;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:12px;font-size:14px;font-family:'DM Mono',monospace;
+  color:var(--text);outline:none;
+}
+.stop-input:focus{border-color:var(--accent2);}
+.stop-input::placeholder{color:var(--muted);}
+
+/* NOTIF PROMPT */
+.notif-card{
+  background:linear-gradient(135deg,rgba(200,240,96,.08),rgba(96,208,240,.05));
+  border:1px solid rgba(200,240,96,.2);border-radius:16px;padding:20px;margin-bottom:12px;
+}
+.notif-card h3{font-size:16px;font-weight:800;margin-bottom:6px;}
+.notif-card p{font-size:13px;color:var(--muted);line-height:1.5;margin-bottom:14px;}
+
+/* DIVIDER */
+.divider{height:1px;background:var(--border);margin:16px 0;}
+
+/* SETTINGS ROW */
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--border);}
+.setting-row:last-child{border:none;}
+.setting-label{font-size:14px;font-weight:600;}
+.setting-sub{font-size:12px;color:var(--muted);font-family:'DM Mono',monospace;margin-top:2px;}
+.toggle{width:44px;height:26px;background:var(--surface2);border-radius:13px;border:1px solid var(--border);position:relative;cursor:pointer;transition:background .2s;}
+.toggle.on{background:var(--accent);}
+.toggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .2s;}
+.toggle.on::after{transform:translateX(18px);}
+
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.fade-in{animation:fadeIn .3s ease forwards;}
+
+/* PWA standalone padding fix */
+@media(display-mode:standalone){
+  header{padding-top:calc(var(--safe-top) + 12px);}
+}
+</style>
+</head>
+<body>
+
+<!-- Install Banner -->
+<div id="install-banner">
+  <button class="install-close" onclick="document.getElementById('install-banner').classList.remove('show')">×</button>
+  <div style="font-size:15px;font-weight:800;margin-bottom:10px;">Add to Home Screen</div>
+  <div class="install-steps">
+    1. Tap <strong>Share</strong> (□↑) in Safari<br/>
+    2. Scroll down → tap <strong>Add to Home Screen</strong><br/>
+    3. Tap <strong>Add</strong> — done! Opens like a native app.
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">Day<span>Pilot</span></div>
+  <div class="clock" id="header-clock">--:--</div>
+  <button class="notif-btn" id="notif-toggle-btn" onclick="requestNotifications()">Enable alerts</button>
+</header>
+
+<!-- Nav -->
+<nav>
+  <div class="nav-tab active" onclick="showPage('alarm',this)"><span class="nav-icon">⏰</span>Alarm</div>
+  <div class="nav-tab" onclick="showPage('bus',this)"><span class="nav-icon">🚌</span>Bus</div>
+  <div class="nav-tab" onclick="showPage('food',this)"><span class="nav-icon">🥩</span>Food</div>
+  <div class="nav-tab" onclick="showPage('home',this)"><span class="nav-icon">🏠</span>Home</div>
+  <div class="nav-tab" onclick="showPage('settings',this)"><span class="nav-icon">⚙️</span>Settings</div>
+</nav>
+
+<!-- Main -->
+<main>
+
+  <!-- ALARM PAGE -->
+  <div class="page active" id="page-alarm">
+    <div id="notif-prompt-card" class="notif-card" style="display:none;">
+      <h3>Enable notifications</h3>
+      <p>Allow notifications so DayPilot can alert you 1 hour before your bus and at 7 PM for food suggestions.</p>
+      <button class="btn btn-primary" onclick="requestNotifications()">Allow notifications</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Morning alarm</div>
+      <div class="card-title">Wake-up time</div>
+      <div class="time-display">
+        <input type="time" id="alarm-input" value="06:30" onchange="onAlarmChange()"/>
+      </div>
+      <div class="status-pill" id="alarm-pill"><span class="dot"></span><span id="alarm-pill-text">No alarm set</span></div>
+      <button class="btn btn-primary" onclick="setAlarm()">Set daily alarm</button>
+      <div style="margin-top:10px;">
+        <button class="btn btn-secondary" onclick="downloadICS()">⬇ Download .ics for Calendar</button>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.6;">
+        Tap "Set daily alarm" to schedule a browser notification.<br/>
+        Or download the .ics file to add a recurring alarm to your iPhone Calendar app.
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Today's schedule</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Bus 44 reminder</div><div class="setting-sub">1 hr before gym → 3:00 PM</div></div>
+        <div class="toggle on" id="bus-reminder-toggle" onclick="toggleReminder('bus')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Food suggestions</div><div class="setting-sub">High-protein alert → 7:00 PM</div></div>
+        <div class="toggle on" id="food-reminder-toggle" onclick="toggleReminder('food')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BUS PAGE -->
+  <div class="page" id="page-bus">
+    <div class="card">
+      <div class="card-label">Bus 44 · Gym run</div>
+      <div class="card-title">Depart by 3:00 PM</div>
+      <div class="card-sub">Gym at 4:00 PM daily</div>
+      <div class="countdown-ring">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle class="ring-bg" cx="60" cy="60" r="52"/>
+          <circle class="ring-fill" id="ring-fill" cx="60" cy="60" r="52" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+        </svg>
+        <div class="countdown-center">
+          <div class="countdown-time" id="bus-countdown-time">--:--</div>
+          <div class="countdown-label" id="bus-countdown-label">until reminder</div>
+        </div>
+      </div>
+      <div class="status-pill" id="bus-status-pill" style="display:block;text-align:center;"><span class="dot" style="display:inline-block;"></span> <span id="bus-status-text">Calculating...</span></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Live arrivals</div>
+      <div class="card-title">Check your stop</div>
+      <div class="card-sub" style="margin-bottom:12px;">Enter your 6-digit BC Transit stop ID</div>
+      <div class="stop-input-row">
+        <input class="stop-input" id="stop-id-input" type="number" placeholder="e.g. 100032" maxlength="6"/>
+        <button class="btn-sm" onclick="checkLiveArrivals()" style="background:var(--accent2);color:#0a0a0f;border:none;">Check</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.6;">
+        Find stop ID on the bus stop sign or Google Maps.<br/>
+        Or text your stop ID to <strong style="color:var(--accent);">11111</strong> for next 4 buses.
+      </div>
+      <div id="live-arrivals-result"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Quick text</div>
+      <div class="card-title">SMS live arrivals</div>
+      <div class="card-sub" style="margin-bottom:12px;">Text BC Transit directly from your phone</div>
+      <a href="sms:11111" style="text-decoration:none;">
+        <button class="btn btn-accent2">Open Messages → Text 11111</button>
+      </a>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:DM Mono,monospace;">
+        Format: <strong style="color:var(--text);">100032 44</strong> (stop ID then route)
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOD PAGE -->
+  <div class="page" id="page-food">
+    <div class="card">
+      <div class="card-label">High-protein food</div>
+      <div class="card-title">Dinner suggestions</div>
+      <div class="card-sub" style="margin-bottom:16px;">Daily reminder at 7:00 PM</div>
+      <button class="btn btn-primary" onclick="findFood()">Find protein-rich food near me</button>
+    </div>
+    <div id="food-results"></div>
+
+    <div class="card">
+      <div class="card-label">Quick search</div>
+      <div class="card-title">Open in Maps</div>
+      <div class="card-sub" style="margin-bottom:12px;">Search high-protein restaurants nearby</div>
+      <div class="btn-row">
+        <a href="https://maps.apple.com/?q=high+protein+restaurant+near+me" style="text-decoration:none;flex:1;">
+          <button class="btn btn-secondary" style="width:100%;">🗺 Apple Maps</button>
+        </a>
+        <a href="https://www.google.com/maps/search/high+protein+restaurant+near+me" style="text-decoration:none;flex:1;">
+          <button class="btn btn-secondary" style="width:100%;">📍 Google Maps</button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- HOME PAGE -->
+  <div class="page" id="page-home">
+    <div class="card">
+      <div class="card-label">Return journey</div>
+      <div class="card-title">Buses home</div>
+      <div class="card-sub" style="margin-bottom:16px;">From your current location</div>
+      <button class="btn btn-accent3" onclick="findBusHome()">Find buses home now</button>
+    </div>
+    <div id="home-results"></div>
+
+    <div class="card">
+      <div class="card-label">Quick options</div>
+      <div class="btn-row" style="flex-direction:column;gap:8px;margin:0;">
+        <a href="https://maps.apple.com/?q=bus+stop+near+me" style="text-decoration:none;">
+          <button class="btn btn-secondary" style="width:100%;">🗺 Nearest stop in Apple Maps</button>
+        </a>
+        <a href="https://transitapp.com" style="text-decoration:none;">
+          <button class="btn btn-secondary" style="width:100%;">🚌 Open Transit App</button>
+        </a>
+        <a href="https://victoria.bctracker.ca" style="text-decoration:none;">
+          <button class="btn btn-secondary" style="width:100%;">📡 BCTracker live map</button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PAGE -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <div class="card-label">My schedule</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Gym time</div><div class="setting-sub">Bus reminder 1 hr before</div></div>
+        <input type="time" id="gym-time-setting" value="16:00" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:DM Mono,monospace;font-size:13px;outline:none;" onchange="saveSettings()"/>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Bus route</div><div class="setting-sub">Your gym bus number</div></div>
+        <input type="text" id="bus-route-setting" value="44" style="width:60px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:DM Mono,monospace;font-size:13px;text-align:center;outline:none;" onchange="saveSettings()"/>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Food reminder</div><div class="setting-sub">Daily protein suggestion</div></div>
+        <input type="time" id="food-time-setting" value="19:00" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:DM Mono,monospace;font-size:13px;outline:none;" onchange="saveSettings()"/>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Notifications</div>
+      <div class="setting-row">
+        <div><div class="setting-label">Bus reminder</div><div class="setting-sub" id="bus-notif-status">Off</div></div>
+        <div class="toggle" id="bus-notif-toggle" onclick="toggleNotifSetting('bus')"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="setting-label">Food reminder</div><div class="setting-sub" id="food-notif-status">Off</div></div>
+        <div class="toggle" id="food-notif-toggle" onclick="toggleNotifSetting('food')"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Install as app</div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.7;font-family:DM Mono,monospace;margin-bottom:14px;">
+        In Safari: tap <strong style="color:var(--text);">Share ↑</strong> → <strong style="color:var(--text);">Add to Home Screen</strong> → <strong style="color:var(--text);">Add</strong>
+      </div>
+      <button class="btn btn-secondary" onclick="document.getElementById('install-banner').classList.add('show')">Show install guide</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">About</div>
+      <div style="font-size:13px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.8;">
+        DayPilot v1.0<br/>
+        Your daily schedule companion<br/>
+        Works offline · No account needed
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ─── State ───────────────────────────────────────────────────────────────────
+const state = {
+  alarmTime: localStorage.getItem('alarmTime') || '06:30',
+  alarmSet: localStorage.getItem('alarmSet') === 'true',
+  gymTime: localStorage.getItem('gymTime') || '16:00',
+  busRoute: localStorage.getItem('busRoute') || '44',
+  foodTime: localStorage.getItem('foodTime') || '19:00',
+  busReminderOn: localStorage.getItem('busReminderOn') !== 'false',
+  foodReminderOn: localStorage.getItem('foodReminderOn') !== 'false',
+  notifGranted: false,
+  scheduledNotifs: JSON.parse(localStorage.getItem('scheduledNotifs') || '{}'),
+};
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  document.getElementById('alarm-input').value = state.alarmTime;
+  document.getElementById('gym-time-setting').value = state.gymTime;
+  document.getElementById('bus-route-setting').value = state.busRoute;
+  document.getElementById('food-time-setting').value = state.foodTime;
+
+  if (state.alarmSet) {
+    document.getElementById('alarm-pill').className = 'status-pill on';
+    document.getElementById('alarm-pill-text').textContent = 'Alarm set for ' + fmt12(state.alarmTime);
+  }
+
+  updateToggle('bus-reminder-toggle', state.busReminderOn);
+  updateToggle('food-reminder-toggle', state.foodReminderOn);
+
+  // Check notification permission
+  if ('Notification' in window && Notification.permission === 'granted') {
+    state.notifGranted = true;
+    document.getElementById('notif-toggle-btn').textContent = 'Alerts on';
+    document.getElementById('notif-toggle-btn').className = 'notif-btn active';
+    scheduleAllNotifications();
+  } else {
+    document.getElementById('notif-prompt-card').style.display = 'block';
+  }
+
+  // Show install banner if not standalone
+  if (!window.navigator.standalone) {
+    setTimeout(() => document.getElementById('install-banner').classList.add('show'), 2000);
+  }
+
+  setInterval(tick, 1000);
+  tick();
+});
+
+// ─── Clock & Countdown ────────────────────────────────────────────────────────
+function tick() {
+  const now = new Date();
+  document.getElementById('header-clock').textContent =
+    pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+
+  // Bus countdown
+  const [gh, gm] = state.gymTime.split(':').map(Number);
+  const reminderH = gh - 1, reminderM = gm;
+  const target = new Date(now);
+  target.setHours(reminderH < 0 ? 23 : reminderH, reminderM, 0, 0);
+  if (target < now) target.setDate(target.getDate() + 1);
+
+  const diff = target - now;
+  const totalSecs = (gh * 3600 + gm * 60) - 3600;
+  const dayMs = 24 * 3600 * 1000;
+  const progress = 1 - (diff / dayMs);
+  const circ = 326.7;
+  const offset = circ - (progress * circ);
+
+  const hLeft = Math.floor(diff / 3600000);
+  const mLeft = Math.floor((diff % 3600000) / 60000);
+  const sLeft = Math.floor((diff % 60000) / 1000);
+
+  const fill = document.getElementById('ring-fill');
+  if (fill) fill.style.strokeDashoffset = Math.max(0, offset);
+
+  const ctEl = document.getElementById('bus-countdown-time');
+  const clEl = document.getElementById('bus-countdown-label');
+  const spEl = document.getElementById('bus-status-pill');
+  const stEl = document.getElementById('bus-status-text');
+
+  if (ctEl) {
+    if (diff < 3600000 && diff > 0) {
+      ctEl.textContent = mLeft + ':' + pad(sLeft);
+      ctEl.style.color = '#f0a060';
+      if (fill) fill.style.stroke = '#f0a060';
+      clEl.textContent = 'BUS SOON';
+      if (stEl) stEl.textContent = '⚡ Leave in ' + mLeft + ' min for Bus ' + state.busRoute;
+      if (spEl) { spEl.className = 'status-pill warn'; spEl.style.display = 'block'; }
+    } else if (diff <= 0) {
+      ctEl.textContent = 'Now';
+      clEl.textContent = 'GYM TIME';
+      if (stEl) stEl.textContent = '🏋️ Gym time!';
+    } else {
+      ctEl.textContent = (hLeft > 0 ? hLeft + 'h ' : '') + mLeft + 'm';
+      ctEl.style.color = 'var(--accent2)';
+      if (fill) fill.style.stroke = 'var(--accent2)';
+      clEl.textContent = 'until reminder';
+      if (stEl) stEl.textContent = 'Reminder at ' + fmt12(pad(reminderH) + ':' + pad(reminderM));
+      if (spEl) { spEl.className = 'status-pill'; spEl.style.display = 'block'; }
+    }
+  }
+
+  // Check scheduled notification firing (fallback for PWA foreground)
+  checkInAppAlerts(now);
+}
+
+let lastAlertMinute = -1;
+function checkInAppAlerts(now) {
+  const minKey = now.getHours() * 60 + now.getMinutes();
+  if (minKey === lastAlertMinute) return;
+
+  const [gh, gm] = state.gymTime.split(':').map(Number);
+  const reminderH = gh - 1 < 0 ? 23 : gh - 1;
+
+  if (state.busReminderOn && now.getHours() === reminderH && now.getMinutes() === gm) {
+    lastAlertMinute = minKey;
+    showInAppToast('🚌 Bus ' + state.busRoute + ' reminder — leave for gym in 1 hour!');
+  }
+  const [fh, fm] = state.foodTime.split(':').map(Number);
+  if (state.foodReminderOn && now.getHours() === fh && now.getMinutes() === fm) {
+    lastAlertMinute = minKey;
+    showInAppToast('🥩 Time to find your high-protein dinner!');
+  }
+}
+
+// ─── In-App Toast ─────────────────────────────────────────────────────────────
+function showInAppToast(msg) {
+  const t = document.createElement('div');
+  t.style.cssText = 'position:fixed;top:calc(var(--safe-top,0px)+70px);left:16px;right:16px;background:#1c1c26;border:1px solid rgba(200,240,96,.3);border-radius:12px;padding:14px 16px;font-size:14px;font-weight:600;z-index:1000;animation:fadeIn .3s ease;box-shadow:0 8px 32px rgba(0,0,0,.5);';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+
+// ─── Alarm ────────────────────────────────────────────────────────────────────
+function onAlarmChange() {
+  state.alarmTime = document.getElementById('alarm-input').value;
+}
+
+function setAlarm() {
+  state.alarmTime = document.getElementById('alarm-input').value;
+  state.alarmSet = true;
+  localStorage.setItem('alarmTime', state.alarmTime);
+  localStorage.setItem('alarmSet', 'true');
+
+  document.getElementById('alarm-pill').className = 'status-pill on';
+  document.getElementById('alarm-pill-text').textContent = 'Alarm set for ' + fmt12(state.alarmTime);
+
+  if (state.notifGranted) {
+    scheduleAlarmNotification();
+    showInAppToast('⏰ Alarm set for ' + fmt12(state.alarmTime));
+  } else {
+    showInAppToast('⏰ Alarm saved! Enable notifications for alerts.');
+    downloadICS();
+  }
+}
+
+function scheduleAlarmNotification() {
+  if (!state.notifGranted || !('serviceWorker' in navigator)) return;
+  const [h, m] = state.alarmTime.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(h, m, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const delay = target - now;
+  setTimeout(() => {
+    new Notification('⏰ DayPilot Alarm', {
+      body: 'Good morning! Time to start your day.',
+      icon: 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="%230a0a0f"/><text y="44" x="10" font-size="40">⏰</text></svg>',
+      tag: 'alarm',
+      renotify: true,
+    });
+    scheduleAlarmNotification(); // reschedule for next day
+  }, delay);
+}
+
+function downloadICS() {
+  const [h, m] = (state.alarmTime || '06:30').split(':');
+  const pad2 = n => String(n).padStart(2,'0');
+  const d = new Date();
+  const ds = d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate());
+  const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//DayPilot//EN\nBEGIN:VEVENT\nSUMMARY:⏰ DayPilot Alarm\nDTSTART:${ds}T${h}${m}00\nDURATION:PT1M\nRRULE:FREQ=DAILY\nDESCRIPTION:Your daily DayPilot alarm\nEND:VEVENT\nEND:VCALENDAR`;
+  const blob = new Blob([ics], {type:'text/calendar'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'daypilot-alarm.ics';
+  a.click();
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+function requestNotifications() {
+  if (!('Notification' in window)) {
+    showInAppToast('Notifications not supported. Use Safari on iPhone.');
+    return;
+  }
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      state.notifGranted = true;
+      document.getElementById('notif-toggle-btn').textContent = 'Alerts on';
+      document.getElementById('notif-toggle-btn').className = 'notif-btn active';
+      document.getElementById('notif-prompt-card').style.display = 'none';
+      updateNotifSettings();
+      scheduleAllNotifications();
+      showInAppToast('✅ Notifications enabled!');
+    } else {
+      showInAppToast('Notifications blocked. Check iPhone Settings → Safari → Notifications.');
+    }
+  });
+}
+
+function scheduleAllNotifications() {
+  if (!state.notifGranted) return;
+  scheduleAlarmNotification();
+  scheduleBusNotification();
+  scheduleFoodNotification();
+}
+
+function scheduleBusNotification() {
+  if (!state.notifGranted || !state.busReminderOn) return;
+  const [gh, gm] = state.gymTime.split(':').map(Number);
+  const rh = gh - 1 < 0 ? 23 : gh - 1;
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(rh, gm, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const delay = target - now;
+  setTimeout(() => {
+    new Notification('🚌 Bus ' + state.busRoute + ' reminder', {
+      body: 'Leave for gym in 1 hour! Gym at ' + fmt12(state.gymTime),
+      tag: 'bus-reminder',
+    });
+    scheduleBusNotification();
+  }, delay);
+}
+
+function scheduleFoodNotification() {
+  if (!state.notifGranted || !state.foodReminderOn) return;
+  const [fh, fm] = state.foodTime.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now);
+  target.setHours(fh, fm, 0, 0);
+  if (target <= now) target.setDate(target.getDate() + 1);
+  const delay = target - now;
+  setTimeout(() => {
+    new Notification('🥩 Protein dinner time!', {
+      body: 'Tap to find high-protein food near you.',
+      tag: 'food-reminder',
+    });
+    scheduleFoodNotification();
+  }, delay);
+}
+
+// ─── Settings ─────────────────────────────────────────────────────────────────
+function saveSettings() {
+  state.gymTime = document.getElementById('gym-time-setting').value;
+  state.busRoute = document.getElementById('bus-route-setting').value;
+  state.foodTime = document.getElementById('food-time-setting').value;
+  localStorage.setItem('gymTime', state.gymTime);
+  localStorage.setItem('busRoute', state.busRoute);
+  localStorage.setItem('foodTime', state.foodTime);
+  scheduleAllNotifications();
+  showInAppToast('✅ Settings saved');
+}
+
+function updateNotifSettings() {
+  const bp = document.getElementById('bus-notif-status');
+  const fp = document.getElementById('food-notif-status');
+  if (bp) bp.textContent = state.busReminderOn ? 'On · ' + fmt12(gymTo reminder()) : 'Off';
+  updateToggle('bus-notif-toggle', state.busReminderOn);
+  updateToggle('food-notif-toggle', state.foodReminderOn);
+}
+
+function gymToReminder() {
+  const [gh, gm] = state.gymTime.split(':').map(Number);
+  const rh = gh - 1 < 0 ? 23 : gh - 1;
+  return pad(rh) + ':' + pad(gm);
+}
+
+function toggleReminder(type) {
+  if (type === 'bus') {
+    state.busReminderOn = !state.busReminderOn;
+    localStorage.setItem('busReminderOn', state.busReminderOn);
+    updateToggle('bus-reminder-toggle', state.busReminderOn);
+  } else {
+    state.foodReminderOn = !state.foodReminderOn;
+    localStorage.setItem('foodReminderOn', state.foodReminderOn);
+    updateToggle('food-reminder-toggle', state.foodReminderOn);
+  }
+}
+
+function toggleNotifSetting(type) {
+  toggleReminder(type);
+  updateToggle('bus-notif-toggle', state.busReminderOn);
+  updateToggle('food-notif-toggle', state.foodReminderOn);
+  const bst = document.getElementById('bus-notif-status');
+  const fst = document.getElementById('food-notif-status');
+  if (bst) bst.textContent = state.busReminderOn ? 'Enabled' : 'Off';
+  if (fst) fst.textContent = state.foodReminderOn ? 'Enabled' : 'Off';
+}
+
+function updateToggle(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.className = 'toggle' + (on ? ' on' : '');
+}
+
+// ─── Live Arrivals ────────────────────────────────────────────────────────────
+function checkLiveArrivals() {
+  const stopId = document.getElementById('stop-id-input').value.trim();
+  if (!stopId || stopId.length < 4) {
+    showInAppToast('Enter a valid 6-digit stop ID');
+    return;
+  }
+  const el = document.getElementById('live-arrivals-result');
+  el.innerHTML = '<div class="loading">Fetching arrivals</div>';
+
+  // Deep link to TransSee for real-time data
+  const url = 'https://www.transsee.ca/arrivals?a=victoria&s=' + stopId;
+  setTimeout(() => {
+    el.innerHTML = `
+      <div class="result-item fade-in" style="margin-top:12px;">
+        <div class="result-item-name">Stop ${stopId}</div>
+        <div class="result-item-meta">Real-time data from BC Transit</div>
+        <div class="btn-row" style="margin-top:10px;">
+          <a href="${url}" style="text-decoration:none;flex:1;">
+            <button class="btn btn-accent2" style="width:100%;font-size:13px;">View live arrivals →</button>
+          </a>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:DM Mono,monospace;">
+          Or text <strong style="color:var(--text);">${stopId} ${state.busRoute}</strong> to <strong style="color:var(--accent);">11111</strong>
+        </div>
+      </div>`;
+  }, 800);
+}
+
+// ─── Food Finder ─────────────────────────────────────────────────────────────
+function findFood() {
+  const el = document.getElementById('food-results');
+  el.innerHTML = '<div class="loading">Finding protein-rich spots near you</div>';
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      const suggestions = [
+        { name: 'Grilled chicken bowl', type: 'Restaurant search', protein: '45g protein', tags: ['High protein', 'Post-gym'] },
+        { name: 'Steak & eggs', type: 'Breakfast/Dinner', protein: '55g protein', tags: ['High protein', 'Keto-friendly'] },
+        { name: 'Salmon sushi', type: 'Japanese', protein: '38g protein', tags: ['High protein', 'Omega-3'] },
+        { name: 'Greek salad + chicken', type: 'Mediterranean', protein: '40g protein', tags: ['High protein', 'Light'] },
+      ];
+
+      el.innerHTML = `
+        <div class="card fade-in">
+          <div class="card-label">Near you · ${lat.toFixed(3)}, ${lng.toFixed(3)}</div>
+          <div class="result-list">
+            ${suggestions.map(s => `
+              <div class="result-item">
+                <div class="result-item-name">${s.name}</div>
+                <div class="result-item-meta">${s.type} · ${s.protein}</div>
+                ${s.tags.map(t => `<span class="result-item-tag">${t}</span>`).join('')}
+              </div>`).join('')}
+          </div>
+          <div style="margin-top:12px;">
+            <a href="https://maps.apple.com/?q=high+protein+restaurant+near+${lat},${lng}" style="text-decoration:none;">
+              <button class="btn btn-primary">Open in Apple Maps</button>
+            </a>
+          </div>
+        </div>`;
+    },
+    err => {
+      el.innerHTML = `
+        <div class="card fade-in">
+          <div class="card-label">Location unavailable</div>
+          <a href="https://maps.apple.com/?q=high+protein+restaurant+near+me" style="text-decoration:none;">
+            <button class="btn btn-primary">Search in Apple Maps</button>
+          </a>
+        </div>`;
+    }
+  );
+}
+
+// ─── Bus Home ─────────────────────────────────────────────────────────────────
+function findBusHome() {
+  const el = document.getElementById('home-results');
+  el.innerHTML = '<div class="loading">Finding your nearest stop</div>';
+
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      el.innerHTML = `
+        <div class="card fade-in">
+          <div class="card-label">From your location · ${lat.toFixed(3)}, ${lng.toFixed(3)}</div>
+          <div class="result-item">
+            <div class="result-item-name">Live bus options</div>
+            <div class="result-item-meta">Tap below for real-time departures</div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;margin-top:12px;">
+            <a href="https://maps.apple.com/?saddr=${lat},${lng}&daddr=Home&dirflg=r" style="text-decoration:none;">
+              <button class="btn btn-accent3" style="width:100%;">🗺 Transit directions home</button>
+            </a>
+            <a href="https://victoria.bctracker.ca/map" style="text-decoration:none;">
+              <button class="btn btn-secondary" style="width:100%;">📡 Live bus map near me</button>
+            </a>
+            <a href="https://www.transsee.ca/systemmap?d=1" style="text-decoration:none;">
+              <button class="btn btn-secondary" style="width:100%;">⏱ Next arrivals by GPS</button>
+            </a>
+          </div>
+          <div style="margin-top:12px;font-size:11px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.6;">
+            Text your stop ID to <strong style="color:var(--accent);">11111</strong> for the next 4 buses instantly.
+          </div>
+        </div>`;
+    },
+    err => {
+      el.innerHTML = `
+        <div class="card fade-in">
+          <a href="https://maps.apple.com/?q=bus+stop+near+me&dirflg=r" style="text-decoration:none;">
+            <button class="btn btn-accent3" style="width:100%;">Open Transit in Apple Maps</button>
+          </a>
+        </div>`;
+    }
+  );
+}
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
+function showPage(name, tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  tab.classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmt12(time24) {
+  const [h, m] = time24.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 || 12;
+  return h12 + ':' + pad(m) + ' ' + ampm;
+}
+</script>
+</body>
+</html>
