@@ -459,19 +459,10 @@ main{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-w
     </div>
 
     <div class="card">
-      <div class="card-label">Mapbox token · Location search</div>
-      <div style="font-size:13px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.7;margin-bottom:14px;">
-        For live place suggestions (SkyTrain, banks, gyms etc.) add a free Mapbox token. No credit card needed.
+      <div class="card-label">Location search · Google Places</div>
+      <div style="font-size:13px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.7;">
+        Live place suggestions powered by Google Places API — SkyTrain stations, banks, gyms, restaurants and more.
       </div>
-      <div style="font-size:12px;font-family:DM Mono,monospace;line-height:1.9;color:var(--text);margin-bottom:14px;">
-        1. Go to <strong style="color:var(--accent2);">mapbox.com</strong> → sign up free<br/>
-        2. Dashboard → copy your <strong>Default public token</strong><br/>
-        3. Open <strong>index.html</strong> → find line:<br/>
-        <span style="background:var(--surface2);padding:4px 8px;border-radius:6px;display:inline-block;margin-top:4px;font-size:11px;color:var(--accent);">const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN'</span><br/>
-        4. Replace <strong>YOUR_MAPBOX_TOKEN</strong> with your token<br/>
-        5. Re-upload to GitHub
-      </div>
-      <div style="font-size:11px;color:var(--muted);font-family:DM Mono,monospace;">Free tier: 100,000 searches/month · No credit card</div>
     </div>
 
     <div class="card">
@@ -919,80 +910,62 @@ function showPage(name, tab) {
 
 
 
-// ─── Mapbox Places Autocomplete ──────────────────────────────────────────────
-// ⬇ PASTE YOUR MAPBOX TOKEN HERE — free at mapbox.com, no credit card needed
-const MAPBOX_TOKEN = 'pk.eyJ1IjoicHJhdGVlazQ1MDYiLCJhIjoiY21vOGJhZmFsMGdqejJyb3NiZnY1aWFxdCJ9.SpQt7TmtOC6Ug4qvsd1-OQ';
+// ─── Google Places Autocomplete ──────────────────────────────────────────────
+const GOOGLE_API_KEY = 'AIzaSyDC6_BuqGnwBNYqNAlwCjRLpehYUjswDDI';
 
 let suggestTimer = null;
 let suggestItems = [];
 let suggestFocusIdx = -1;
+let gAutoSvc = null;
+let gPlacesSvc = null;
+let gMapsLoading = false;
+
+// Lazy-load Google Maps SDK on first keystroke
+function ensureGoogleMaps(cb) {
+  if (window.google && window.google.maps && window.google.maps.places) { cb(); return; }
+  if (gMapsLoading) { setTimeout(() => ensureGoogleMaps(cb), 300); return; }
+  gMapsLoading = true;
+  window._googleMapsReady = function() {
+    gAutoSvc = new google.maps.places.AutocompleteService();
+    gPlacesSvc = new google.maps.places.PlacesService(document.createElement('div'));
+    cb();
+  };
+  const s = document.createElement('script');
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + GOOGLE_API_KEY + '&libraries=places&callback=_googleMapsReady';
+  s.async = true; s.defer = true;
+  document.head.appendChild(s);
+}
 
 function onDestInput(val) {
   clearTimeout(suggestTimer);
   const dropdown = document.getElementById('suggest-dropdown');
   if (!val || val.length < 2) { dropdown.style.display = 'none'; suggestItems = []; return; }
-  suggestTimer = setTimeout(() => fetchMapboxSuggestions(val), 250);
+  suggestTimer = setTimeout(() => {
+    dropdown.style.display = 'block';
+    dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;"><span class="suggest-icon">⏳</span><div><div class="suggest-main" style="color:var(--muted);">Searching...</div></div></div>';
+    ensureGoogleMaps(() => fetchGoogleSuggestions(val));
+  }, 250);
 }
 
-async function fetchMapboxSuggestions(query) {
-  const dropdown = document.getElementById('suggest-dropdown');
-  dropdown.style.display = 'block';
-  dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;"><span class="suggest-icon">⏳</span><div><div class="suggest-main" style="color:var(--muted);">Searching...</div></div></div>';
-
-  if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN') {
-    dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;"><span class="suggest-icon">🔑</span><div><div class="suggest-main" style="color:var(--muted);">Add Mapbox token to enable suggestions</div><div class="suggest-sub">See setup guide in Settings tab</div></div></div>';
-    return;
-  }
-
-  try {
-    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/'
-      + encodeURIComponent(query)
-      + '.json?access_token=' + MAPBOX_TOKEN
-      + '&autocomplete=true&limit=7&language=en&types=poi,address,place,locality,neighborhood,district';
-
-    const res = await fetch(url);
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => res.status);
-      console.error('Mapbox error:', res.status, errText);
-      dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;">'
-        + '<span class="suggest-icon">⚠️</span>'
-        + '<div><div class="suggest-main" style="color:var(--muted);">Error ' + res.status + ' — check token in Settings</div>'
-        + '<div class="suggest-sub">' + String(errText).slice(0, 60) + '</div></div></div>';
-      return;
+function fetchGoogleSuggestions(query) {
+  if (!gAutoSvc) return;
+  gAutoSvc.getPlacePredictions(
+    { input: query },
+    (predictions, status) => {
+      const dropdown = document.getElementById('suggest-dropdown');
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !predictions || !predictions.length) {
+        dropdown.style.display = 'none';
+        return;
+      }
+      suggestItems = predictions.map(p => ({
+        main: p.structured_formatting.main_text,
+        sub: p.structured_formatting.secondary_text || '',
+        placeId: p.place_id,
+        lat: null, lon: null
+      }));
+      renderDropdown(dropdown);
     }
-
-    const data = await res.json();
-    const features = data.features || [];
-
-    if (!features.length) {
-      dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;">'
-        + '<span class="suggest-icon">🔍</span>'
-        + '<div><div class="suggest-main" style="color:var(--muted);">No results for "' + escHtml(query) + '"</div></div></div>';
-      return;
-    }
-
-    suggestItems = features.map(f => {
-      const parts = f.place_name.split(', ');
-      const main = f.text || parts[0];
-      const sub = parts.slice(1, 3).join(', ');
-      const coords = f.geometry && f.geometry.coordinates;
-      return {
-        main: main,
-        sub: sub,
-        lat: coords ? coords[1] : null,
-        lon: coords ? coords[0] : null,
-      };
-    });
-
-    renderDropdown(dropdown);
-  } catch(e) {
-    console.error('Mapbox fetch exception:', e);
-    dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;">'
-      + '<span class="suggest-icon">⚠️</span>'
-      + '<div><div class="suggest-main" style="color:var(--muted);">Could not reach Mapbox</div>'
-      + '<div class="suggest-sub">Check internet connection · ' + escHtml(e.message) + '</div></div></div>';
-  }
+  );
 }
 
 function renderDropdown(dropdown) {
@@ -1005,7 +978,7 @@ function renderDropdown(dropdown) {
     + '<div><div class="suggest-main">' + escHtml(item.main) + '</div>'
     + '<div class="suggest-sub">' + escHtml(item.sub || '') + '</div></div>'
     + '</div>'
-  ).join('') + '<div class="suggest-powered">Powered by Mapbox</div>';
+  ).join('') + '<div class="suggest-powered">Powered by Google</div>';
 }
 
 function pickSuggestion(idx) {
@@ -1016,8 +989,18 @@ function pickSuggestion(idx) {
   document.getElementById('suggest-dropdown').style.display = 'none';
   suggestItems = [];
   document.querySelectorAll('.dest-chip').forEach(c => c.classList.remove('selected'));
-  input.dataset.lat = item.lat || '';
-  input.dataset.lon = item.lon || '';
+  // Geocode to get lat/lng for the selected place
+  if (item.placeId && gPlacesSvc) {
+    gPlacesSvc.getDetails(
+      { placeId: item.placeId, fields: ['geometry'] },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place.geometry) {
+          input.dataset.lat = place.geometry.location.lat();
+          input.dataset.lon = place.geometry.location.lng();
+        }
+      }
+    );
+  }
 }
 
 function onDestKey(e) {
