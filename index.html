@@ -197,6 +197,33 @@ main{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-w
 .toggle::after{content:'';position:absolute;width:20px;height:20px;background:#fff;border-radius:50%;top:2px;left:2px;transition:transform .2s;}
 .toggle.on::after{transform:translateX(18px);}
 
+
+
+
+
+
+/* AUTOCOMPLETE DROPDOWN */
+.suggest-item{
+  padding:12px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid var(--border);
+  display:flex;align-items:flex-start;gap:10px;transition:background .1s;
+}
+.suggest-item:last-child{border-bottom:none;}
+.suggest-item:active,.suggest-item.focused{background:rgba(96,208,240,.1);}
+.suggest-main{font-weight:600;color:var(--text);line-height:1.3;}
+.suggest-sub{font-size:11px;color:var(--muted);font-family:DM Mono,monospace;margin-top:2px;}
+.suggest-icon{font-size:14px;margin-top:1px;flex-shrink:0;}
+.suggest-powered{padding:8px 14px;font-size:10px;color:var(--muted);font-family:DM Mono,monospace;text-align:right;background:var(--surface);}
+
+/* DESTINATION CHIPS */
+.dest-chip{
+  padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;
+  background:var(--surface2);border:1px solid var(--border);color:var(--muted);
+  cursor:pointer;transition:all .15s;font-family:'Syne',sans-serif;
+}
+.dest-chip:active,.dest-chip.selected{
+  background:rgba(96,208,240,.12);color:var(--accent2);border-color:rgba(96,208,240,.4);
+}
+
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 .fade-in{animation:fadeIn .3s ease forwards;}
@@ -279,8 +306,10 @@ main{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-w
 
   <!-- BUS PAGE -->
   <div class="page" id="page-bus">
+
+    <!-- Countdown card -->
     <div class="card">
-      <div class="card-label">Bus 44 · Gym run</div>
+      <div class="card-label">Bus <span id="bus-label-route">44</span> &middot; Gym run</div>
       <div class="card-title">Depart by 3:00 PM</div>
       <div class="card-sub">Gym at 4:00 PM daily</div>
       <div class="countdown-ring">
@@ -296,32 +325,48 @@ main{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-w
       <div class="status-pill" id="bus-status-pill" style="display:block;text-align:center;"><span class="dot" style="display:inline-block;"></span> <span id="bus-status-text">Calculating...</span></div>
     </div>
 
+    <!-- Destination + location finder -->
     <div class="card">
-      <div class="card-label">Live arrivals</div>
-      <div class="card-title">Check your stop</div>
-      <div class="card-sub" style="margin-bottom:12px;">Enter your 6-digit BC Transit stop ID</div>
-      <div class="stop-input-row">
-        <input class="stop-input" id="stop-id-input" type="number" placeholder="e.g. 100032" maxlength="6"/>
-        <button class="btn-sm" onclick="checkLiveArrivals()" style="background:var(--accent2);color:#0a0a0f;border:none;">Check</button>
+      <div class="card-label">Find buses from my location</div>
+      <div class="card-title">Where to?</div>
+      <div class="card-sub" style="margin-bottom:14px;">Enter destination &mdash; we'll find buses from your nearest stop</div>
+
+      <div style="position:relative;margin-bottom:10px;">
+        <input class="stop-input" id="destination-input" type="text" placeholder="e.g. Downtown Victoria, UVic, Mayfair..." autocomplete="off" style="width:100%;padding-right:40px;" oninput="onDestInput(this.value)" onkeydown="onDestKey(event)"/>
+        <span style="position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:16px;pointer-events:none;">📍</span>
+        <div id="suggest-dropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;z-index:200;overflow:hidden;box-shadow:0 8px 24px rgba(0,0,0,.4);"></div>
       </div>
-      <div style="font-size:11px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.6;">
-        Find stop ID on the bus stop sign or Google Maps.<br/>
-        Or text your stop ID to <strong style="color:var(--accent);">11111</strong> for next 4 buses.
+
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px;">
+        <button class="dest-chip" onclick="setDest('Downtown Victoria')">Downtown Victoria</button>
+        <button class="dest-chip" onclick="setDest('Langford Exchange')">Langford Exchange</button>
+        <button class="dest-chip" onclick="setDest('University of Victoria')">UVic</button>
+        <button class="dest-chip" onclick="setDest('Mayfair Mall')">Mayfair Mall</button>
+        <button class="dest-chip" onclick="setDest('Uptown Shopping Centre')">Uptown</button>
+        <button class="dest-chip" onclick="setDest('Royal Oak Exchange')">Royal Oak</button>
       </div>
-      <div id="live-arrivals-result"></div>
+
+      <button class="btn btn-accent2" onclick="findBusesFromLocation()" id="find-buses-btn">
+        Use my location &amp; find buses
+      </button>
+      <div id="location-status" style="margin-top:8px;font-size:12px;color:var(--muted);font-family:DM Mono,monospace;min-height:18px;"></div>
     </div>
 
+    <!-- Results -->
+    <div id="bus-finder-results"></div>
+
+    <!-- SMS fallback -->
     <div class="card">
-      <div class="card-label">Quick text</div>
-      <div class="card-title">SMS live arrivals</div>
-      <div class="card-sub" style="margin-bottom:12px;">Text BC Transit directly from your phone</div>
+      <div class="card-label">No data? Use SMS</div>
+      <div class="card-sub" style="margin-bottom:10px;">Text your stop ID to BC Transit for instant arrivals</div>
       <a href="sms:11111" style="text-decoration:none;">
-        <button class="btn btn-accent2">Open Messages → Text 11111</button>
+        <button class="btn btn-secondary">Open Messages &rarr; Text 11111</button>
       </a>
       <div style="margin-top:8px;font-size:11px;color:var(--muted);font-family:DM Mono,monospace;">
-        Format: <strong style="color:var(--text);">100032 44</strong> (stop ID then route)
+        Format: <strong style="color:var(--text);">100032 44</strong> &mdash; stop ID then route number
       </div>
     </div>
+
   </div>
 
   <!-- FOOD PAGE -->
@@ -411,6 +456,22 @@ main{flex:1;overflow-y:auto;padding:20px 16px calc(20px + var(--safe-bottom));-w
         In Safari: tap <strong style="color:var(--text);">Share ↑</strong> → <strong style="color:var(--text);">Add to Home Screen</strong> → <strong style="color:var(--text);">Add</strong>
       </div>
       <button class="btn btn-secondary" onclick="document.getElementById('install-banner').classList.add('show')">Show install guide</button>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Mapbox token · Location search</div>
+      <div style="font-size:13px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.7;margin-bottom:14px;">
+        For live place suggestions (SkyTrain, banks, gyms etc.) add a free Mapbox token. No credit card needed.
+      </div>
+      <div style="font-size:12px;font-family:DM Mono,monospace;line-height:1.9;color:var(--text);margin-bottom:14px;">
+        1. Go to <strong style="color:var(--accent2);">mapbox.com</strong> → sign up free<br/>
+        2. Dashboard → copy your <strong>Default public token</strong><br/>
+        3. Open <strong>index.html</strong> → find line:<br/>
+        <span style="background:var(--surface2);padding:4px 8px;border-radius:6px;display:inline-block;margin-top:4px;font-size:11px;color:var(--accent);">const MAPBOX_TOKEN = 'YOUR_MAPBOX_TOKEN'</span><br/>
+        4. Replace <strong>YOUR_MAPBOX_TOKEN</strong> with your token<br/>
+        5. Re-upload to GitHub
+      </div>
+      <div style="font-size:11px;color:var(--muted);font-family:DM Mono,monospace;">Free tier: 100,000 searches/month · No credit card</div>
     </div>
 
     <div class="card">
@@ -854,6 +915,231 @@ function showPage(name, tab) {
   document.getElementById('page-' + name).classList.add('active');
   tab.classList.add('active');
   window.scrollTo(0,0);
+}
+
+
+
+// ─── Mapbox Places Autocomplete ──────────────────────────────────────────────
+// ⬇ PASTE YOUR MAPBOX TOKEN HERE — free at mapbox.com, no credit card needed
+const MAPBOX_TOKEN = 'pk.eyJ1IjoicHJhdGVlazQ1MDYiLCJhIjoiY21vOGJhZmFsMGdqejJyb3NiZnY1aWFxdCJ9.SpQt7TmtOC6Ug4qvsd1-OQ';
+
+let suggestTimer = null;
+let suggestItems = [];
+let suggestFocusIdx = -1;
+
+function onDestInput(val) {
+  clearTimeout(suggestTimer);
+  const dropdown = document.getElementById('suggest-dropdown');
+  if (!val || val.length < 2) { dropdown.style.display = 'none'; suggestItems = []; return; }
+  suggestTimer = setTimeout(() => fetchMapboxSuggestions(val), 250);
+}
+
+async function fetchMapboxSuggestions(query) {
+  const dropdown = document.getElementById('suggest-dropdown');
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;"><span class="suggest-icon">⏳</span><div><div class="suggest-main" style="color:var(--muted);">Searching...</div></div></div>';
+
+  if (!MAPBOX_TOKEN || MAPBOX_TOKEN === 'YOUR_MAPBOX_TOKEN') {
+    dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;"><span class="suggest-icon">🔑</span><div><div class="suggest-main" style="color:var(--muted);">Add Mapbox token to enable suggestions</div><div class="suggest-sub">See setup guide in Settings tab</div></div></div>';
+    return;
+  }
+
+  try {
+    const url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/'
+      + encodeURIComponent(query)
+      + '.json?access_token=' + MAPBOX_TOKEN
+      + '&autocomplete=true&limit=7&language=en&types=poi,address,place,locality,neighborhood,district';
+
+    const res = await fetch(url);
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.status);
+      console.error('Mapbox error:', res.status, errText);
+      dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;">'
+        + '<span class="suggest-icon">⚠️</span>'
+        + '<div><div class="suggest-main" style="color:var(--muted);">Error ' + res.status + ' — check token in Settings</div>'
+        + '<div class="suggest-sub">' + String(errText).slice(0, 60) + '</div></div></div>';
+      return;
+    }
+
+    const data = await res.json();
+    const features = data.features || [];
+
+    if (!features.length) {
+      dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;">'
+        + '<span class="suggest-icon">🔍</span>'
+        + '<div><div class="suggest-main" style="color:var(--muted);">No results for "' + escHtml(query) + '"</div></div></div>';
+      return;
+    }
+
+    suggestItems = features.map(f => {
+      const parts = f.place_name.split(', ');
+      const main = f.text || parts[0];
+      const sub = parts.slice(1, 3).join(', ');
+      const coords = f.geometry && f.geometry.coordinates;
+      return {
+        main: main,
+        sub: sub,
+        lat: coords ? coords[1] : null,
+        lon: coords ? coords[0] : null,
+      };
+    });
+
+    renderDropdown(dropdown);
+  } catch(e) {
+    console.error('Mapbox fetch exception:', e);
+    dropdown.innerHTML = '<div class="suggest-item" style="pointer-events:none;">'
+      + '<span class="suggest-icon">⚠️</span>'
+      + '<div><div class="suggest-main" style="color:var(--muted);">Could not reach Mapbox</div>'
+      + '<div class="suggest-sub">Check internet connection · ' + escHtml(e.message) + '</div></div></div>';
+  }
+}
+
+function renderDropdown(dropdown) {
+  suggestFocusIdx = -1;
+  if (!suggestItems.length) { dropdown.style.display = 'none'; return; }
+  dropdown.style.display = 'block';
+  dropdown.innerHTML = suggestItems.map((item, i) =>
+    '<div class="suggest-item" data-idx="' + i + '" onmousedown="pickSuggestion(' + i + ')" ontouchend="pickSuggestion(' + i + ')">'
+    + '<span class="suggest-icon">📍</span>'
+    + '<div><div class="suggest-main">' + escHtml(item.main) + '</div>'
+    + '<div class="suggest-sub">' + escHtml(item.sub || '') + '</div></div>'
+    + '</div>'
+  ).join('') + '<div class="suggest-powered">Powered by Mapbox</div>';
+}
+
+function pickSuggestion(idx) {
+  const item = suggestItems[idx];
+  if (!item) return;
+  const input = document.getElementById('destination-input');
+  input.value = item.main + (item.sub ? ', ' + item.sub : '');
+  document.getElementById('suggest-dropdown').style.display = 'none';
+  suggestItems = [];
+  document.querySelectorAll('.dest-chip').forEach(c => c.classList.remove('selected'));
+  input.dataset.lat = item.lat || '';
+  input.dataset.lon = item.lon || '';
+}
+
+function onDestKey(e) {
+  const dropdown = document.getElementById('suggest-dropdown');
+  const items = dropdown.querySelectorAll('.suggest-item');
+  if (!items.length) return;
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    suggestFocusIdx = Math.min(suggestFocusIdx + 1, items.length - 1);
+    items.forEach((el, i) => el.classList.toggle('focused', i === suggestFocusIdx));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    suggestFocusIdx = Math.max(suggestFocusIdx - 1, 0);
+    items.forEach((el, i) => el.classList.toggle('focused', i === suggestFocusIdx));
+  } else if (e.key === 'Enter' && suggestFocusIdx >= 0) {
+    e.preventDefault();
+    pickSuggestion(suggestFocusIdx);
+  } else if (e.key === 'Escape') {
+    dropdown.style.display = 'none';
+  }
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#destination-input') && !e.target.closest('#suggest-dropdown')) {
+    const d = document.getElementById('suggest-dropdown');
+    if (d) d.style.display = 'none';
+  }
+});
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ─── Destination bus finder ───────────────────────────────────────────────────
+function setDest(name) {
+  document.getElementById('destination-input').value = name;
+  document.querySelectorAll('.dest-chip').forEach(c => {
+    c.classList.toggle('selected', c.textContent.trim() === name);
+  });
+}
+
+function findBusesFromLocation() {
+  const dest = document.getElementById('destination-input').value.trim();
+  if (!dest) { showInAppToast('Please enter a destination first'); return; }
+  const statusEl = document.getElementById('location-status');
+  const resultsEl = document.getElementById('bus-finder-results');
+  const btn = document.getElementById('find-buses-btn');
+  btn.textContent = 'Locating you...';
+  btn.disabled = true;
+  statusEl.textContent = 'Requesting GPS...';
+  resultsEl.innerHTML = '';
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      statusEl.textContent = 'Found ✓ ' + lat.toFixed(4) + ', ' + lng.toFixed(4);
+      btn.textContent = 'Use my location & find buses';
+      btn.disabled = false;
+      renderBusResults(lat, lng, dest);
+    },
+    err => {
+      statusEl.textContent = 'Location unavailable — showing map links';
+      btn.textContent = 'Use my location & find buses';
+      btn.disabled = false;
+      renderBusResultsFallback(dest);
+    },
+    { timeout: 10000, enableHighAccuracy: true }
+  );
+}
+
+// current map state
+// ─── Bus Results ──────────────────────────────────────────────────────────────
+function renderBusResults(lat, lng, dest) {
+  const now = new Date();
+  const timeStr = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  const origin = lat + ',' + lng;
+  const googleUrl = 'https://www.google.com/maps/dir/?api=1'
+    + '&origin=' + origin
+    + '&destination=' + encodeURIComponent(dest)
+    + '&travelmode=transit';
+  const appleUrl = 'https://maps.apple.com/?saddr=' + origin
+    + '&daddr=' + encodeURIComponent(dest)
+    + '&dirflg=r';
+  const resultsEl = document.getElementById('bus-finder-results');
+  resultsEl.innerHTML =
+    '<div class="card fade-in">'
+    + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">'
+    + '<div style="flex:1;"><div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;letter-spacing:1px;text-transform:uppercase;">From</div>'
+    + '<div style="font-size:12px;font-weight:600;margin-top:2px;">' + lat.toFixed(4) + ', ' + lng.toFixed(4) + '</div></div>'
+    + '<div style="font-size:18px;color:var(--accent2);">&#8594;</div>'
+    + '<div style="flex:1;text-align:right;"><div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;letter-spacing:1px;text-transform:uppercase;">To</div>'
+    + '<div style="font-size:13px;font-weight:700;margin-top:2px;">' + escHtml(dest) + '</div></div>'
+    + '</div>'
+    + busRow(googleUrl, '🗺', 'Google Maps Transit', 'Live bus times & step-by-step directions')
+    + busRow(appleUrl, '🍎', 'Apple Maps Transit', 'Best on iPhone — shows next bus times')
+    + '<div style="margin-top:12px;padding:12px;background:rgba(96,208,240,.06);border-radius:10px;border:1px solid rgba(96,208,240,.15);">'
+    + '<div style="font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent2);margin-bottom:4px;">SMS tip</div>'
+    + '<div style="font-size:12px;color:var(--muted);font-family:DM Mono,monospace;line-height:1.6;">At your stop, text its ID to <strong style="color:var(--text);">11111</strong> for next 4 buses instantly.</div>'
+    + '</div></div>';
+}
+
+function renderBusResultsFallback(dest) {
+  const googleUrl = 'https://www.google.com/maps/dir/?api=1'
+    + '&destination=' + encodeURIComponent(dest)
+    + '&travelmode=transit';
+  const appleUrl = 'https://maps.apple.com/?daddr=' + encodeURIComponent(dest) + '&dirflg=r';
+  const resultsEl = document.getElementById('bus-finder-results');
+  resultsEl.innerHTML =
+    '<div class="card fade-in">'
+    + '<div style="margin-bottom:14px;"><div style="font-size:10px;color:var(--muted);font-family:DM Mono,monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:4px;">To</div>'
+    + '<div style="font-size:15px;font-weight:700;">' + escHtml(dest) + '</div></div>'
+    + busRow(googleUrl, '🗺', 'Google Maps Transit', 'Live buses to ' + escHtml(dest))
+    + busRow(appleUrl, '🍎', 'Apple Maps Transit', 'Directions to ' + escHtml(dest))
+    + '</div>';
+}
+
+function busRow(url, icon, title, sub) {
+  return '<a href="' + url + '" style="text-decoration:none;display:block;margin-bottom:8px;">'
+    + '<div class="result-item" style="display:flex;align-items:center;gap:12px;cursor:pointer;">'
+    + '<div style="font-size:22px;">' + icon + '</div>'
+    + '<div><div class="result-item-name">' + title + '</div><div class="result-item-meta">' + sub + '</div></div>'
+    + '<div style="margin-left:auto;color:var(--accent2);font-size:20px;">&#8250;</div>'
+    + '</div></a>';
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
